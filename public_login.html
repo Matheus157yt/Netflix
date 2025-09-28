@@ -1,39 +1,38 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Entrar — Área de Membros</title>
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <main class="centered">
+<body class="bg">
+  <div class="centered">
     <div class="card auth-card">
-      <h1>Entrar</h1>
-      <form id="formLogin">
-        <label>Email</label>
-        <input id="email" type="email" required />
+      <h1 class="title">Entrar</h1>
+      <form id="loginForm">
+        <label>E-mail</label>
+        <input id="login_email" type="email" required placeholder="seu@exemplo.com" />
         <label>Senha</label>
-        <input id="password" type="password" required />
+        <input id="login_password" type="password" required placeholder="********" />
         <button class="btn primary" type="submit">Entrar</button>
       </form>
       <p class="muted">Não tem conta? <a href="public_register.html">Criar conta</a></p>
       <div id="msg" class="msg"></div>
     </div>
-  </main>
+  </div>
 <script src="client.js"></script>
 <script>
-document.getElementById('formLogin').addEventListener('submit', async (e)=>{
+document.getElementById('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('password').value;
-  const res = await apiPost('/api/auth/login', { email, password });
-  if (res && res.accessToken) {
-    localStorage.setItem('accessToken', res.accessToken);
-    localStorage.setItem('refreshToken', res.refreshToken);
-    if (res.user && res.user.role === 'admin') location.href = 'public_admin.html';
+  const email = document.getElementById('login_email').value.trim();
+  const password = document.getElementById('login_password').value;
+  const r = await UM.auth.login(email, password);
+  if (r.ok) {
+    // redirect by role
+    if (r.user.role === 'admin') location.href = 'public_admin.html';
     else location.href = 'public_student.html';
   } else {
-    showMsg(res && res.error ? res.error : 'Erro ao autenticar');
+    showMsg(r.error || 'Erro ao autenticar');
   }
 });
 </script>

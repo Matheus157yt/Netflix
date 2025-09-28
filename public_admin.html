@@ -1,28 +1,149 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin — Painel</title><link rel="stylesheet" href="styles.css"></head>
-<body>
-<header class="header"><div class="brand">Minha Área <span class="role">Admin</span></div><div><button id="btnLogout" class="btn small">Sair</button></div></header>
-<main class="container admin">
-  <section><h2>Usuários</h2><div id="users"></div></section>
-  <section><h2>Cursos</h2><div id="courses"></div></section>
-  <section><h2>Logs</h2><div id="logs"></div></section>
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Admin — Painel</title><link rel="stylesheet" href="styles.css"></head>
+<body class="bg">
+<header class="header"><div class="brand">Minha Área <span class="tag admin">Admin</span></div><div><button id="logoutBtn" class="btn small">Sair</button></div></header>
+<main class="container admin-grid">
+  <section class="card admin-panel">
+    <h2>Usuários</h2>
+    <div id="usersList"></div>
+    <h3>Criar usuário</h3>
+    <form id="createUserForm">
+      <input id="u_name" placeholder="Nome" required />
+      <input id="u_email" placeholder="E-mail" required />
+      <input id="u_password" placeholder="Senha" required />
+      <select id="u_role"><option value="student">student</option><option value="admin">admin</option></select>
+      <button class="btn primary" type="submit">Criar</button>
+    </form>
+  </section>
+
+  <section class="card admin-panel">
+    <h2>Cursos</h2>
+    <div id="coursesList"></div>
+    <h3>Criar curso</h3>
+    <form id="createCourseForm">
+      <input id="c_title" placeholder="Título" required />
+      <input id="c_desc" placeholder="Descrição" />
+      <button class="btn primary" type="submit">Criar curso</button>
+    </form>
+  </section>
+
+  <section class="card admin-panel">
+    <h2>Logs de auditoria</h2>
+    <div id="logsList"></div>
+  </section>
 </main>
+<div id="modalRoot"></div>
 <script src="client.js"></script>
 <script>
-async function loadUsers(){ const res = await apiGet('/api/admin/users'); const el = document.getElementById('users'); el.innerHTML=''; if(res && res.users) res.users.forEach(u=>{ const d=document.createElement('div'); d.className='admin-row'; d.innerHTML=`<strong>${u.name}</strong> - ${u.email} - ${u.role} - bloqueado:${u.blocked} <button class="btn small" onclick="toggleBlock('${u.id}',${u.blocked})">${u.blocked? 'Desbloquear':'Bloquear'}</button> <button class="btn small" onclick="deleteUser('${u.id}')">Excluir</button>`; el.appendChild(d); }); }
-async function loadCourses(){ const res = await apiGet('/api/admin/courses'); const el = document.getElementById('courses'); el.innerHTML=''; if(res && res.courses) res.courses.forEach(c=>{ const d=document.createElement('div'); d.className='admin-row'; d.innerHTML=`<strong>${c.title}</strong><p>${c.description||''}</p><button class="btn small" onclick="openModules('${c.id}')">Módulos</button> <button class="btn small" onclick="deleteCourse('${c.id}')">Excluir</button>`; el.appendChild(d); }); }
-async function loadLogs(){ const res = await apiGet('/api/admin/logs'); const el = document.getElementById('logs'); el.innerHTML=''; if(res && res.logs) res.logs.forEach(l=>{ const d=document.createElement('div'); d.className='log-row'; d.innerText = `${l.created_at} - ${l.action} - ${JSON.stringify(l.details)}`; el.appendChild(d); }); }
-window.toggleBlock = async function(id, blocked){ const name = prompt('Novo nome (opcional)'); const email = prompt('Novo email (opcional)'); const role = prompt('Role (admin/student)', 'student'); const res = await apiPut('/api/admin/users/'+id, { name: name||undefined, email: email||undefined, role, blocked: !blocked }); if (res && res.user) loadUsers(); }
-window.deleteUser = async function(id){ if(!confirm('Confirmar?')) return; const res = await apiDelete('/api/admin/users/'+id); if(res && res.ok) loadUsers(); }
-window.deleteCourse = async function(id){ if(!confirm('Excluir curso?')) return; const res = await apiDelete('/api/admin/courses/'+id); if(res && res.ok) loadCourses(); }
-window.openModules = async function(courseId){ const res = await apiGet('/api/admin/courses/'+courseId+'/modules'); const modal = document.createElement('div'); modal.className='modal'; modal.innerHTML=`<div class="modal-content"><h3>Módulos</h3><div id="mods"></div><input id="mTitle" placeholder="Título"/><input id="mContent" placeholder="Conteúdo"/><button class="btn" onclick="createModule('${courseId}')">Criar</button><button class="btn" onclick="document.body.removeChild(document.querySelector('.modal'))">Fechar</button></div>`; document.body.appendChild(modal); const modsEl=document.getElementById('mods'); if(res && res.modules) res.modules.forEach(m=>{ const d=document.createElement('div'); d.className='admin-row'; d.innerHTML=`<strong>${m.title}</strong><p>${m.content||''}</p><button class="btn small" onclick="deleteModule('${m.id}')">Excluir</button>`; modsEl.appendChild(d); }); }
-window.createModule = async function(courseId){ const title=document.getElementById('mTitle').value; const content=document.getElementById('mContent').value; const res=await apiPost('/api/admin/courses/'+courseId+'/modules', { title, content }); if(res && res.module) alert('Módulo criado'); location.reload(); }
-window.deleteModule = async function(id){ if(!confirm('Excluir módulo?')) return; const res = await apiDelete('/api/admin/modules/'+id); if (res && res.ok) location.reload(); }
+(async function(){
+  const user = UM.session.getUser();
+  if (!user) { location.href='public_login.html'; return; }
+  if (user.role !== 'admin') { alert('Acesso negado'); location.href='public_student.html'; return; }
 
-document.getElementById('btnLogout').addEventListener('click', async ()=>{ const refreshToken = localStorage.getItem('refreshToken'); await apiPost('/api/auth/logout', { refreshToken }); localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken'); location.href='public_login.html'; });
+  document.getElementById('logoutBtn').addEventListener('click', ()=>{ UM.session.logout(); location.href='public_login.html'; });
 
-loadUsers(); loadCourses(); loadLogs();
+  function renderUsers(){
+    const users = UM.storage.getUsers();
+    const el = document.getElementById('usersList'); el.innerHTML='';
+    users.forEach(u=>{
+      const d = document.createElement('div'); d.className='admin-row';
+      d.innerHTML = `<strong>${escapeHtml(u.name)}</strong> - ${escapeHtml(u.email)} - <em>${u.role}</em> - bloqueado: ${u.blocked}
+        <div class="admin-actions">
+          <button class="btn small" onclick="editUser('${u.id}')">Editar</button>
+          <button class="btn small" onclick="toggleBlock('${u.id}')">${u.blocked? 'Desbloquear' : 'Bloquear'}</button>
+          <button class="btn small danger" onclick="deleteUser('${u.id}')">Excluir</button>
+        </div>`;
+      el.appendChild(d);
+    });
+  }
+
+  window.editUser = function(id){
+    const u = UM.storage.getUser(id);
+    const modal = document.createElement('div'); modal.className='modal';
+    modal.innerHTML = `<div class="modal-content"><h3>Editar usuário</h3>
+      <input id="e_name" value="${escapeHtml(u.name)}"/><input id="e_email" value="${escapeHtml(u.email)}"/><select id="e_role"><option value="student">student</option><option value="admin">admin</option></select>
+      <label>Trocar senha (opcional)</label><input id="e_pass" type="password" placeholder="Nova senha"/>
+      <div class="modal-actions"><button class="btn primary" id="saveBtn">Salvar</button><button class="btn" onclick="document.body.removeChild(document.querySelector('.modal'))">Cancelar</button></div></div>`;
+    document.body.appendChild(modal);
+    document.getElementById('e_role').value = u.role;
+    document.getElementById('saveBtn').addEventListener('click', ()=>{
+      const name = document.getElementById('e_name').value.trim();
+      const email = document.getElementById('e_email').value.trim();
+      const role = document.getElementById('e_role').value;
+      const password = document.getElementById('e_pass').value;
+      UM.storage.updateUser(u.id, { name, email, role, password: password||undefined });
+      UM.audit.log(user.id, 'UPDATE_USER', 'users', u.id, { updates: { name, email, role, password: !!password } });
+      document.body.removeChild(document.querySelector('.modal'));
+      renderUsers();
+    });
+  };
+
+  window.toggleBlock = function(id){
+    const u = UM.storage.getUser(id);
+    UM.storage.updateUser(id, { blocked: !u.blocked });
+    UM.audit.log(user.id, 'TOGGLE_BLOCK', 'users', id, { blocked: !u.blocked });
+    renderUsers();
+  };
+
+  window.deleteUser = function(id){
+    if (!confirm('Confirmar exclusão?')) return;
+    UM.storage.deleteUser(id);
+    UM.audit.log(user.id, 'DELETE_USER', 'users', id, {});
+    renderUsers();
+  };
+
+  document.getElementById('createUserForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const name = document.getElementById('u_name').value.trim();
+    const email = document.getElementById('u_email').value.trim();
+    const password = document.getElementById('u_password').value;
+    const role = document.getElementById('u_role').value;
+    const newU = UM.storage.createUser({ name, email, password, role });
+    UM.audit.log(user.id, 'CREATE_USER', 'users', newU.id, { email: newU.email, role: newU.role });
+    renderUsers();
+    document.getElementById('createUserForm').reset();
+  });
+
+  // Courses
+  function renderCourses(){
+    const list = UM.storage.getCourses();
+    const el = document.getElementById('coursesList'); el.innerHTML='';
+    list.forEach(c=>{
+      const d = document.createElement('div'); d.className='admin-row';
+      d.innerHTML = `<strong>${escapeHtml(c.title)}</strong><p>${escapeHtml(c.description||'')}</p>
+        <div class="admin-actions"><button class="btn small" onclick="openModules('${c.id}')">Módulos</button><button class="btn small danger" onclick="deleteCourse('${c.id}')">Excluir</button></div>`;
+      el.appendChild(d);
+    });
+  }
+  window.openModules = function(courseId){
+    const mods = UM.storage.getModules(courseId);
+    const modal = document.createElement('div'); modal.className='modal';
+    modal.innerHTML = `<div class="modal-content"><h3>Módulos</h3><div id="mods"></div>
+      <input id="mTitle" placeholder="Título"/><input id="mContent" placeholder="Conteúdo"/><button class="btn" id="createM">Criar módulo</button>
+      <button class="btn" onclick="document.body.removeChild(document.querySelector('.modal'))">Fechar</button></div>`;
+    document.body.appendChild(modal);
+    const modsEl = document.getElementById('mods');
+    mods.forEach(m=>{ const r=document.createElement('div'); r.className='admin-row'; r.innerHTML=`<strong>${escapeHtml(m.title)}</strong><p>${escapeHtml(m.content||'')}</p><button class="btn small danger" onclick="deleteModule('${m.id}','${courseId}')">Excluir</button>`; modsEl.appendChild(r); });
+    document.getElementById('createM').addEventListener('click', ()=>{
+      const t = document.getElementById('mTitle').value.trim();
+      const ct = document.getElementById('mContent').value.trim();
+      const m = UM.storage.createModule(courseId, { title: t, content: ct });
+      UM.audit.log(user.id, 'CREATE_MODULE', 'modules', m.id, { title: m.title });
+      location.reload();
+    });
+  };
+  window.deleteModule = function(id, courseId){ if(!confirm('Excluir módulo?')) return; UM.storage.deleteModule(id); UM.audit.log(user.id,'DELETE_MODULE','modules',id,{}); location.reload(); };
+  window.deleteCourse = function(id){ if(!confirm('Excluir curso?')) return; UM.storage.deleteCourse(id); UM.audit.log(user.id,'DELETE_COURSE','courses',id,{}); renderCourses(); };
+
+  document.getElementById('createCourseForm').addEventListener('submit',(e)=>{ e.preventDefault(); const title = document.getElementById('c_title').value.trim(); const desc = document.getElementById('c_desc').value.trim(); const c = UM.storage.createCourse({ title, description: desc }); UM.audit.log(user.id,'CREATE_COURSE','courses',c.id,{title:c.title}); renderCourses(); document.getElementById('createCourseForm').reset(); });
+
+  // Logs
+  function renderLogs(){ const logs = UM.audit.getLogs(); const el = document.getElementById('logsList'); el.innerHTML=''; logs.forEach(l=>{ const d=document.createElement('div'); d.className='log-row'; d.innerText = `${l.created_at} - ${l.action} - ${JSON.stringify(l.details)}`; el.appendChild(d); }); }
+
+  renderUsers(); renderCourses(); renderLogs();
+})();
+
+function escapeHtml(s){ return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 </script>
-</body>
-</html>
+</body></html>

@@ -1,32 +1,41 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cadastrar — Área de Membros</title><link rel="stylesheet" href="styles.css"></head>
-<body>
-  <main class="centered">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cadastrar — Área de Membros</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg">
+  <div class="centered">
     <div class="card auth-card">
-      <h1>Criar Conta</h1>
-      <form id="formRegister">
-        <label>Nome</label><input id="name" type="text" required />
-        <label>Email</label><input id="email" type="email" required />
-        <label>Senha</label><input id="password" type="password" required />
+      <h1 class="title">Criar Conta</h1>
+      <form id="registerForm">
+        <label>Nome</label>
+        <input id="reg_name" type="text" required placeholder="Seu nome completo" />
+        <label>E-mail</label>
+        <input id="reg_email" type="email" required placeholder="seu@exemplo.com" />
+        <label>Senha</label>
+        <input id="reg_password" type="password" required placeholder="Crie uma senha" />
         <button class="btn primary" type="submit">Cadastrar</button>
       </form>
       <p class="muted">Já tem conta? <a href="public_login.html">Entrar</a></p>
       <div id="msg" class="msg"></div>
     </div>
-  </main>
+  </div>
 <script src="client.js"></script>
 <script>
-document.getElementById('formRegister').addEventListener('submit', async (e)=>{
+document.getElementById('registerForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const name = document.getElementById('name').value;
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('password').value;
-  const res = await apiPost('/api/auth/register', { name, email, password });
-  if (res && res.ok) {
-    showMsg('Cadastro realizado com sucesso. Redirecionando para login...');
+  const name = document.getElementById('reg_name').value.trim();
+  const email = document.getElementById('reg_email').value.trim();
+  const password = document.getElementById('reg_password').value;
+  const r = await UM.auth.register({ name, email, password });
+  if (r.ok) {
+    showMsg('Cadastro realizado. Você será redirecionado para login.');
     setTimeout(()=> location.href = 'public_login.html', 1200);
-  } else showMsg(res && res.error ? res.error : 'Erro no cadastro');
+  } else {
+    showMsg(r.error || 'Erro no cadastro');
+  }
 });
 </script>
 </body>

@@ -1,47 +1,65 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aluno — Dashboard</title><link rel="stylesheet" href="styles.css"></head>
-<body>
-<header class="header"><div class="brand">Minha Área <span class="role">Aluno</span></div><div><button id="btnLogout" class="btn small">Sair</button></div></header>
-<main class="container"><h2>Cursos</h2><div id="courses" class="grid"></div></main>
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Aluno — Dashboard</title><link rel="stylesheet" href="styles.css"></head>
+<body class="bg">
+<header class="header"><div class="brand">Minha Área <span class="tag">Aluno</span></div><div><button id="logoutBtn" class="btn small">Sair</button></div></header>
+<main class="container">
+  <section>
+    <h2>Meus cursos</h2>
+    <div id="courses" class="grid"></div>
+  </section>
+</main>
+
+<div id="modalRoot"></div>
+
 <script src="client.js"></script>
 <script>
-async function load(){
-  const res = await apiGet('/api/student/courses');
-  const container = document.getElementById('courses');
-  container.innerHTML = '';
-  if (!res || !res.courses) return container.innerHTML = '<p>Sem cursos.</p>';
-  res.courses.forEach(c=>{
-    const div = document.createElement('div'); div.className='course';
-    div.innerHTML = `<h3>${c.title}</h3><p>${c.description||''}</p><button class="btn" onclick="openCourse('${c.id}')">Abrir</button>`;
-    container.appendChild(div);
-  });
-}
-window.openCourse = async function(courseId){
-  const res = await apiGet('/api/student/courses/'+courseId+'/modules');
-  if (!res) return alert('Erro');
-  const modal = document.createElement('div'); modal.className='modal';
-  modal.innerHTML = '<div class="modal-content"><h3>Módulos</h3><div id="mods"></div><button class="btn" onclick="document.body.removeChild(document.querySelector(\'.modal\'))">Fechar</button></div>';
-  document.body.appendChild(modal);
-  const modsEl = document.getElementById('mods');
-  res.modules.forEach(m=>{
-    const done = res.progress && res.progress[m.id];
-    const mdiv = document.createElement('div'); mdiv.className='module';
-    mdiv.innerHTML = `<strong>${m.title}</strong><p>${m.content||''}</p><div><button class="btn small" onclick="toggleProgress('${courseId}','${m.id}',${done? 'false' : 'true'})">${done? 'Desmarcar' : 'Marcar como concluído'}</button></div>`;
-    modsEl.appendChild(mdiv);
-  });
-};
-window.toggleProgress = async function(courseId, moduleId, completed){
-  const res = await apiPost('/api/student/courses/'+courseId+'/modules/'+moduleId+'/progress', { completed });
-  if (res && res.ok) { alert('Atualizado'); location.reload(); } else alert('Erro');
-};
-document.getElementById('btnLogout').addEventListener('click', async ()=>{
-  const refreshToken = localStorage.getItem('refreshToken');
-  await apiPost('/api/auth/logout', { refreshToken });
-  localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken');
-  location.href = 'public_login.html';
-});
-load();
+(async function(){
+  const user = UM.session.getUser();
+  if (!user) { location.href = 'public_login.html'; return; }
+  if (user.role !== 'student' && user.role !== 'admin') { alert('Role inválida'); return; }
+
+  document.getElementById('logoutBtn').addEventListener('click', ()=>{ UM.session.logout(); location.href='public_login.html'; });
+
+  async function loadCourses(){
+    const res = UM.storage.getCourses();
+    const container = document.getElementById('courses');
+    container.innerHTML = '';
+    if (!res.length) return container.innerHTML = '<p class="muted">Nenhum curso disponível.</p>';
+    res.forEach(c=>{
+      const card = document.createElement('div'); card.className='course';
+      card.innerHTML = `<h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.description||'')}</p>
+        <div class="card-actions"><button class="btn" onclick="openCourse('${c.id}')">Abrir curso</button></div>`;
+      container.appendChild(card);
+    });
+  }
+
+  window.openCourse = async function(courseId){
+    const data = UM.storage.getModules(courseId);
+    const progress = UM.storage.getProgressForUser(user.id);
+    const modal = document.createElement('div'); modal.className='modal';
+    modal.innerHTML = `<div class="modal-content"><h3>Módulos</h3><div id="mods"></div><button class="btn" onclick="document.body.removeChild(document.querySelector('.modal'))">Fechar</button></div>`;
+    document.body.appendChild(modal);
+    const modsEl = document.getElementById('mods');
+    if (!data.length) modsEl.innerHTML = '<p class="muted">Sem módulos.</p>';
+    data.forEach(m=>{
+      const done = !!(progress[m.id]);
+      const div = document.createElement('div'); div.className='module';
+      div.innerHTML = `<strong>${escapeHtml(m.title)}</strong><p>${escapeHtml(m.content||'')}</p>
+        <div><button class="btn small" onclick="toggleComplete('${m.id}', '${courseId}', ${done})">${done? 'Desmarcar' : 'Marcar como concluído'}</button></div>`;
+      modsEl.appendChild(div);
+    });
+  };
+
+  window.toggleComplete = async function(moduleId, courseId, currentlyDone){
+    UM.storage.setProgress(user.id, moduleId, !currentlyDone);
+    location.reload();
+  };
+
+  loadCourses();
+})();
+
+// small helper exposed from client.js
+function escapeHtml(s){ return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 </script>
-</body>
-</html>
+</body></html>
