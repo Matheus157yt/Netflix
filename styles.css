@@ -1,0 +1,27 @@
+/* styles.css - tema preto + vermelho, responsivo e simples */
+:root{--bg:#000;--card:#111;--accent:#E50914;--muted:#bdbdbd;--text:#fff}
+*{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial}
+body{margin:0;background:var(--bg);color:var(--text);min-height:100vh}
+.centered{display:flex;align-items:center;justify-content:center;height:100vh}
+.card{background:var(--card);padding:20px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03)}
+.auth-card{width:100%;max-width:420px}
+h1{margin:0 0 12px 0;color:var(--accent)}
+label{display:block;margin-top:8px;color:var(--muted);font-size:14px}
+input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);margin-top:6px}
+.btn{display:inline-block;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);cursor:pointer;margin-top:12px}
+.btn.primary{background:var(--accent);border:none;color:#fff}
+.btn.small{padding:6px 8px;font-size:13px}
+.muted{color:var(--muted);font-size:14px;margin-top:8px}
+.container{max-width:1100px;margin:24px auto;padding:0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.course{background:#0f0f0f;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+.header{display:flex;justify-content:space-between;align-items:center;padding:12px 24px}
+.brand{font-weight:700}
+.role{background:var(--accent);padding:4px 8px;border-radius:8px;margin-left:8px;color:#000}
+.admin-row{background:#101010;padding:8px;margin:6px 0;border-radius:8px}
+.log-row{font-size:13px;color:var(--muted);padding:6px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center}
+.modal-content{background:var(--card);padding:20px;border-radius:10px;width:90%;max-width:720px}
+.auth-links{margin-top:12px;text-align:center}
+.auth-links a{color:var(--muted);text-decoration:none}
+.msg{margin-top:10px;color:var(--accent)}

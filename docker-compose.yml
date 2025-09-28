@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  api:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/membersdb
+      - JWT_ACCESS_SECRET=devsecret
+      - JWT_REFRESH_SECRET=devrefresh
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: membersdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin — Painel</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+<header class="header"><div class="brand">Minha Área <span class="role">Admin</span></div><div><button id="btnLogout" class="btn small">Sair</button></div></header>
+<main class="container admin">
+  <section><h2>Usuários</h2><div id="users"></div></section>
+  <section><h2>Cursos</h2><div id="courses"></div></section>
+  <section><h2>Logs</h2><div id="logs"></div></section>
+</main>
+<script src="client.js"></script>
+<script>
+async function loadUsers(){ const res = await apiGet('/api/admin/users'); const el = document.getElementById('users'); el.innerHTML=''; if(res && res.users) res.users.forEach(u=>{ const d=document.createElement('div'); d.className='admin-row'; d.innerHTML=`<strong>${u.name}</strong> - ${u.email} - ${u.role} - bloqueado:${u.blocked} <button class="btn small" onclick="toggleBlock('${u.id}',${u.blocked})">${u.blocked? 'Desbloquear':'Bloquear'}</button> <button class="btn small" onclick="deleteUser('${u.id}')">Excluir</button>`; el.appendChild(d); }); }
+async function loadCourses(){ const res = await apiGet('/api/admin/courses'); const el = document.getElementById('courses'); el.innerHTML=''; if(res && res.courses) res.courses.forEach(c=>{ const d=document.createElement('div'); d.className='admin-row'; d.innerHTML=`<strong>${c.title}</strong><p>${c.description||''}</p><button class="btn small" onclick="openModules('${c.id}')">Módulos</button> <button class="btn small" onclick="deleteCourse('${c.id}')">Excluir</button>`; el.appendChild(d); }); }
+async function loadLogs(){ const res = await apiGet('/api/admin/logs'); const el = document.getElementById('logs'); el.innerHTML=''; if(res && res.logs) res.logs.forEach(l=>{ const d=document.createElement('div'); d.className='log-row'; d.innerText = `${l.created_at} - ${l.action} - ${JSON.stringify(l.details)}`; el.appendChild(d); }); }
+window.toggleBlock = async function(id, blocked){ const name = prompt('Novo nome (opcional)'); const email = prompt('Novo email (opcional)'); const role = prompt('Role (admin/student)', 'student'); const res = await apiPut('/api/admin/users/'+id, { name: name||undefined, email: email||undefined, role, blocked: !blocked }); if (res && res.user) loadUsers(); }
+window.deleteUser = async function(id){ if(!confirm('Confirmar?')) return; const res = await apiDelete('/api/admin/users/'+id); if(res && res.ok) loadUsers(); }
+window.deleteCourse = async function(id){ if(!confirm('Excluir curso?')) return; const res = await apiDelete('/api/admin/courses/'+id); if(res && res.ok) loadCourses(); }
+window.openModules = async function(courseId){ const res = await apiGet('/api/admin/courses/'+courseId+'/modules'); const modal = document.createElement('div'); modal.className='modal'; modal.innerHTML=`<div class="modal-content"><h3>Módulos</h3><div id="mods"></div><input id="mTitle" placeholder="Título"/><input id="mContent" placeholder="Conteúdo"/><button class="btn" onclick="createModule('${courseId}')">Criar</button><button class="btn" onclick="document.body.removeChild(document.querySelector('.modal'))">Fechar</button></div>`; document.body.appendChild(modal); const modsEl=document.getElementById('mods'); if(res && res.modules) res.modules.forEach(m=>{ const d=document.createElement('div'); d.className='admin-row'; d.innerHTML=`<strong>${m.title}</strong><p>${m.content||''}</p><button class="btn small" onclick="deleteModule('${m.id}')">Excluir</button>`; modsEl.appendChild(d); }); }
+window.createModule = async function(courseId){ const title=document.getElementById('mTitle').value; const content=document.getElementById('mContent').value; const res=await apiPost('/api/admin/courses/'+courseId+'/modules', { title, content }); if(res && res.module) alert('Módulo criado'); location.reload(); }
+window.deleteModule = async function(id){ if(!confirm('Excluir módulo?')) return; const res = await apiDelete('/api/admin/modules/'+id); if (res && res.ok) location.reload(); }
+
+document.getElementById('btnLogout').addEventListener('click', async ()=>{ const refreshToken = localStorage.getItem('refreshToken'); await apiPost('/api/auth/logout', { refreshToken }); localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken'); location.href='public_login.html'; });
+
+loadUsers(); loadCourses(); loadLogs();
+</script>
+</body>
+</html>
